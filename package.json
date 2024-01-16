@@ -50,7 +50,7 @@
     "lodash.merge": "^4.6.1",
     "mysql2": "^2.3.3",
     "sequelize": "^5.21.9",
-    "sqlite3": "^4.0.4"
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "cross-env": "^5.2.0",
