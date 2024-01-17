@@ -19,7 +19,7 @@
     "lint": "eslint ./api/. ./config/. ./test/.",
     "prestart": "npm run create-sqlite-db",
     "start": "nodemon --exec npm run dev",
-    "nodemon": "nodemon --exec npm run dev",
+    "nodemon": "npm run dev",
     "prepush": "npm test; npm run drop-sqlite-db; npm run create-sqlite-db",
     "pretest": "npm run lint",
     "production": "cross-env NODE_ENV=production node ./api/api.js",
