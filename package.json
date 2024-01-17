@@ -18,7 +18,7 @@
     "drop-sqlite-db": "shx rm ./db/database.sqlite",
     "lint": "eslint ./api/. ./config/. ./test/.",
     "prestart": "npm run create-sqlite-db",
-    "start": "npm run nodemon",
+    "nodemon": "nodemon --exec npm run dev",
     "prepush": "npm test; npm run drop-sqlite-db; npm run create-sqlite-db",
     "pretest": "npm run lint",
     "production": "cross-env NODE_ENV=production node ./api/api.js",
