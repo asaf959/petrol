@@ -53,8 +53,6 @@ const beforeAction = async () => {
   await database.drop();
   await database.sync();
 
-  console.log('Connection to the database has been established successfully');
-
   return testapp;
 };
 

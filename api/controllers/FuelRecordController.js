@@ -17,12 +17,12 @@ const FuelRecordController = () => {
       paymentType,
       bankName,
       driverName,
-      status,
+      paymentStatus,
       amountRemaining,
       amountReturnDate,
     } = req.body;
     try {
-      const actualAmountPaid = amountPaid || 0;
+      const actualAmountPaid = amountPaid;
       const fuelRecordObj = await FuelRecord.create({
         date,
         vehicle_id: vehicleId,
@@ -33,7 +33,7 @@ const FuelRecordController = () => {
         total_amount: totalAmount,
         amount_paid: actualAmountPaid,
         payment_type: paymentType,
-        status,
+        status: paymentStatus,
         amount_remaining: amountRemaining,
         amount_return_date: amountReturnDate,
       });

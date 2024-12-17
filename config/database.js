@@ -4,7 +4,6 @@ const path = require('path');
 const connection = require('./connection');
 
 let database;
-console.log(process.env.DB_NAME);
 switch (process.env.NODE_ENV) {
   case 'production':
     database = new Sequelize(
