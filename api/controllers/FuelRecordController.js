@@ -17,7 +17,8 @@ const FuelRecordController = () => {
       paymentType,
       bankName,
       driverName,
-      paymentStatus,
+      // paymentStatus,
+      status,
       amountRemaining,
       amountReturnDate,
     } = req.body;
@@ -33,7 +34,7 @@ const FuelRecordController = () => {
         total_amount: totalAmount,
         amount_paid: actualAmountPaid,
         payment_type: paymentType,
-        status: paymentStatus,
+        status,
         amount_remaining: amountRemaining,
         amount_return_date: amountReturnDate,
       });
