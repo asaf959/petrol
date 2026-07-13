@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
 # Petrol full stack installer for Hostinger VPS (Ubuntu/Debian)
-# Paste into the Hostinger browser terminal as root, or:
-#   curl -fsSL <raw-url> | bash
-# Or copy this file to the server and run: bash install-vps.sh
+#
+# Private GitHub repos require a Personal Access Token (PAT):
+#   export GITHUB_TOKEN=ghp_xxxxxxxx
+#   curl -fsSL https://raw.githubusercontent.com/asaf959/petrol/main/deploy/install-vps.sh | bash
+#
+# Create token: GitHub → Settings → Developer settings → Personal access tokens
+#   classic token with "repo" scope is enough.
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/petrol}"
-BACKEND_REPO="${BACKEND_REPO:-https://github.com/asaf959/petrol.git}"
-FRONTEND_REPO="${FRONTEND_REPO:-https://github.com/asaf959/Petrol-react.git}"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+
+# Never prompt for GitHub username/password in non-interactive VPS consoles
+export GIT_TERMINAL_PROMPT=0
+
+if [ -n "$GITHUB_TOKEN" ]; then
+  BACKEND_REPO="https://x-access-token:${GITHUB_TOKEN}@github.com/asaf959/petrol.git"
+  FRONTEND_REPO="https://x-access-token:${GITHUB_TOKEN}@github.com/asaf959/Petrol-react.git"
+  echo "==> Using GITHUB_TOKEN for private repo access"
+else
+  BACKEND_REPO="${BACKEND_REPO:-https://github.com/asaf959/petrol.git}"
+  FRONTEND_REPO="${FRONTEND_REPO:-https://github.com/asaf959/Petrol-react.git}"
+  echo "==> No GITHUB_TOKEN set — public clone only (private repos will fail)"
+fi
 
 echo "==> Installing Docker (if needed)"
 if ! command -v docker >/dev/null 2>&1; then
@@ -26,17 +42,37 @@ echo "==> Preparing app directory: $APP_DIR"
 mkdir -p "$APP_DIR"
 cd "$APP_DIR"
 
-if [ -d petrol/.git ]; then
-  git -C petrol pull --ff-only || true
-else
-  git clone "$BACKEND_REPO" petrol
-fi
+clone_or_pull() {
+  local url="$1"
+  local dir="$2"
+  if [ -d "$dir/.git" ]; then
+    echo "==> Updating $dir"
+    if [ -n "$GITHUB_TOKEN" ]; then
+      git -C "$dir" remote set-url origin "$url"
+    fi
+    git -C "$dir" pull --ff-only || true
+  else
+    echo "==> Cloning $dir"
+    if ! git clone "$url" "$dir"; then
+      echo ""
+      echo "❌ Failed to clone: $dir"
+      echo "   Your GitHub repo is private. GitHub no longer accepts account passwords."
+      echo ""
+      echo "   Fix — create a token, then re-run:"
+      echo "   1) GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)"
+      echo "   2) Generate new token (classic) with scope: repo"
+      echo "   3) On the VPS run:"
+      echo "      export GITHUB_TOKEN=ghp_your_token_here"
+      echo "      curl -fsSL https://raw.githubusercontent.com/asaf959/petrol/main/deploy/install-vps.sh | bash"
+      echo ""
+      echo "   Or make both repos Public, then re-run the curl|bash command."
+      exit 1
+    fi
+  fi
+}
 
-if [ -d petrol-react/.git ]; then
-  git -C petrol-react pull --ff-only || true
-else
-  git clone "$FRONTEND_REPO" petrol-react
-fi
+clone_or_pull "$BACKEND_REPO" petrol
+clone_or_pull "$FRONTEND_REPO" petrol-react
 
 mkdir -p deploy
 cd deploy
