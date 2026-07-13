@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   ParseIntPipe,
 } from '@nestjs/common';
 import {
@@ -14,6 +15,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { VehiclesService } from './vehicles.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
@@ -76,10 +78,26 @@ export class VehiclesController {
   }
 
   @Get('profitByVehicle/:vehicleId')
-  @ApiOperation({ summary: 'Get all profit records for a specific vehicle' })
+  @ApiOperation({
+    summary: 'Get profit/rent records for a vehicle',
+    description:
+      'Optional filters: year, month (1-12), day (1-31). Omit all to return every record.',
+  })
   @ApiParam({ name: 'vehicleId', type: Number })
+  @ApiQuery({ name: 'year', required: false, example: 2026 })
+  @ApiQuery({ name: 'month', required: false, example: 7 })
+  @ApiQuery({ name: 'day', required: false, example: 4 })
   @ApiResponse({ status: 200, description: 'Profit records for the vehicle' })
-  getProfits(@Param('vehicleId', ParseIntPipe) vehicleId: number) {
-    return this.vehiclesService.getProfitsByVehicle(vehicleId);
+  getProfits(
+    @Param('vehicleId', ParseIntPipe) vehicleId: number,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('day') day?: string,
+  ) {
+    return this.vehiclesService.getProfitsByVehicle(vehicleId, {
+      year: year ? Number(year) : undefined,
+      month: month ? Number(month) : undefined,
+      day: day ? Number(day) : undefined,
+    });
   }
 }

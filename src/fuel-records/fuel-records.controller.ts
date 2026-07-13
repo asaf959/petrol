@@ -18,6 +18,7 @@ import {
 import { FuelRecordsService } from './fuel-records.service';
 import { CreateFuelRecordDto } from './dto/create-fuel-record.dto';
 import { UpdateFuelRecordDto } from './dto/update-fuel-record.dto';
+import { AddPaymentDto } from './dto/add-payment.dto';
 
 @ApiTags('Fuel Records')
 @ApiBearerAuth('JWT-auth')
@@ -48,11 +49,28 @@ export class FuelRecordsController {
     return this.fuelRecordsService.findOne(id);
   }
 
+  @Post('fuelRecord/:id/payment')
+  @ApiOperation({
+    summary: 'Add a partial or full payment',
+    description:
+      'Adds a dated payment against the remaining balance, creates a payment history log, and recalculates paid/remaining/status.',
+  })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 201, description: 'Payment recorded successfully' })
+  @ApiResponse({ status: 400, description: 'Payment exceeds remaining balance or already paid' })
+  @ApiResponse({ status: 404, description: 'Fuel record not found' })
+  addPayment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() addPaymentDto: AddPaymentDto,
+  ) {
+    return this.fuelRecordsService.addPayment(id, addPaymentDto);
+  }
+
   @Put('fuelRecord/:id/update')
   @ApiOperation({
     summary: 'Update a fuel record',
     description:
-      'If `amountPaid` is provided, it adds a new payment log entry and recalculates the remaining balance automatically.',
+      'If `amount_paid` is increased, it treats the difference as a new payment, logs it, and recalculates remaining. Prefer POST /fuelRecord/:id/payment for partial payments.',
   })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Fuel record updated successfully' })

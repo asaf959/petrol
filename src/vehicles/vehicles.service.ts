@@ -2,8 +2,15 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vehicle } from './entities/vehicle.entity';
+import { Profit } from '../profits/entities/profit.entity';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
+
+export type ProfitDateFilter = {
+  year?: number;
+  month?: number;
+  day?: number;
+};
 
 @Injectable()
 export class VehiclesService {
@@ -40,18 +47,41 @@ export class VehiclesService {
   }
 
   async getFuelRecordsByVehicle(vehicleId: number) {
-    const vehicle = await this.findOne(vehicleId);
+    await this.findOne(vehicleId);
     return this.vehicleRepository.manager.find('FuelRecord', {
       where: { vehicle_id: vehicleId },
       relations: ['vehicle', 'station', 'logs'],
     });
   }
 
-  async getProfitsByVehicle(vehicleId: number) {
+  async getProfitsByVehicle(vehicleId: number, filters: ProfitDateFilter = {}) {
     await this.findOne(vehicleId);
-    return this.vehicleRepository.manager.find('Profit', {
-      where: { vehicle_id: vehicleId },
-      relations: ['vehicle', 'station'],
-    });
+
+    const qb = this.vehicleRepository.manager
+      .getRepository(Profit)
+      .createQueryBuilder('profit')
+      .leftJoinAndSelect('profit.vehicle', 'vehicle')
+      .leftJoinAndSelect('profit.station', 'station')
+      .where('profit.vehicle_id = :vehicleId', { vehicleId })
+      .orderBy('profit.date', 'DESC')
+      .addOrderBy('profit.id', 'DESC');
+
+    if (filters.year && Number.isFinite(filters.year)) {
+      qb.andWhere('EXTRACT(YEAR FROM profit.date) = :year', {
+        year: filters.year,
+      });
+    }
+    if (filters.month && Number.isFinite(filters.month)) {
+      qb.andWhere('EXTRACT(MONTH FROM profit.date) = :month', {
+        month: filters.month,
+      });
+    }
+    if (filters.day && Number.isFinite(filters.day)) {
+      qb.andWhere('EXTRACT(DAY FROM profit.date) = :day', {
+        day: filters.day,
+      });
+    }
+
+    return qb.getMany();
   }
 }
