@@ -8,6 +8,8 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.setGlobalPrefix('api');
+
   app.enableCors({
     origin: true,
     credentials: true,
@@ -53,7 +55,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
+  SwaggerModule.setup('docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
     },
@@ -63,7 +65,7 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(`\n🚀 Petrol API is running on: http://localhost:${port}`);
-  console.log(`📖 Swagger Docs available at: http://localhost:${port}/api/docs\n`);
+  console.log(`📖 Swagger Docs available at: http://localhost:${port}/docs\n`);
 }
 
 bootstrap();
