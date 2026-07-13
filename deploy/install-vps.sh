@@ -214,10 +214,35 @@ else
   echo "==> Using existing deploy/.env"
 fi
 
+# Free host port 80 if Apache/Nginx (non-Docker) already own it
+echo "==> Checking port 80"
+if ss -tlnp 2>/dev/null | grep -q ':80 ' || netstat -tlnp 2>/dev/null | grep -q ':80 '; then
+  echo "==> Port 80 is busy — stopping host apache2/nginx (keeps Docker)"
+  systemctl stop apache2 2>/dev/null || true
+  systemctl disable apache2 2>/dev/null || true
+  systemctl stop nginx 2>/dev/null || true
+  systemctl disable nginx 2>/dev/null || true
+  # If something else still holds 80, fall back to 8080
+  if ss -tlnp 2>/dev/null | grep -q ':80 ' || netstat -tlnp 2>/dev/null | grep -q ':80 '; then
+    echo "==> Port 80 still busy — using HTTP_PORT=8080"
+    if ! grep -q '^HTTP_PORT=' .env 2>/dev/null; then
+      echo "HTTP_PORT=8080" >> .env
+    else
+      sed -i 's/^HTTP_PORT=.*/HTTP_PORT=8080/' .env
+    fi
+  fi
+fi
+
+# Ensure HTTP_PORT exists in .env (default 80)
+if ! grep -q '^HTTP_PORT=' .env 2>/dev/null; then
+  echo "HTTP_PORT=80" >> .env
+fi
+
 # Open HTTP if ufw is active
+HTTP_PORT_VAL=$(grep '^HTTP_PORT=' .env | cut -d= -f2)
 if command -v ufw >/dev/null 2>&1; then
   ufw allow OpenSSH || true
-  ufw allow 80/tcp || true
+  ufw allow "${HTTP_PORT_VAL}/tcp" || true
   ufw --force enable || true
 fi
 
@@ -225,11 +250,17 @@ echo "==> Building and starting stack (this may take several minutes)"
 docker compose down --remove-orphans || true
 docker compose up -d --build
 
+PUBLIC_IP="$(curl -s ifconfig.me || hostname -I | awk '{print $1}')"
+PORT_SUFFIX=""
+if [ "${HTTP_PORT_VAL}" != "80" ]; then
+  PORT_SUFFIX=":${HTTP_PORT_VAL}"
+fi
+
 echo ""
 echo "✅ Deploy complete"
-echo "   App:     http://$(curl -s ifconfig.me || hostname -I | awk '{print $1}')"
-echo "   Swagger: http://$(curl -s ifconfig.me || hostname -I | awk '{print $1}')/docs"
+echo "   App:     http://${PUBLIC_IP}${PORT_SUFFIX}"
+echo "   Swagger: http://${PUBLIC_IP}${PORT_SUFFIX}/docs"
 echo "   Dir:     $APP_DIR/deploy"
 echo "   Logs:    cd $APP_DIR/deploy && docker compose logs -f"
 echo ""
-grep ADMIN_SECRET .env || true
+grep -E 'ADMIN_SECRET|HTTP_PORT' .env || true
