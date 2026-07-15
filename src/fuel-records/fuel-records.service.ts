@@ -6,6 +6,7 @@ import { FuelRecordLog } from './entities/fuel-record-log.entity';
 import { CreateFuelRecordDto } from './dto/create-fuel-record.dto';
 import { UpdateFuelRecordDto } from './dto/update-fuel-record.dto';
 import { AddPaymentDto } from './dto/add-payment.dto';
+import { getPdfPath, removePdf, savePdf } from '../common/upload/pdf-upload';
 
 @Injectable()
 export class FuelRecordsService {
@@ -47,27 +48,36 @@ export class FuelRecordsService {
     return record;
   }
 
-  async create(createFuelRecordDto: CreateFuelRecordDto) {
-    const record = this.fuelRecordRepository.create({
-      ...createFuelRecordDto,
-      amount_return_date: createFuelRecordDto.amount_return_date || [],
-      status: createFuelRecordDto.status || 'Pending',
-    });
-
-    this.applyStatus(record);
-    const saved = await this.fuelRecordRepository.save(record);
-
-    if (saved.amount_paid > 0) {
-      const log = this.fuelRecordLogRepository.create({
-        amount_paid: saved.amount_paid,
-        amount_remaining: saved.amount_remaining,
-        payment_date: saved.date ?? this.todayDateString(),
-        fuelRecordId: saved.id,
+  async create(createFuelRecordDto: CreateFuelRecordDto, document?: Buffer) {
+    let documentName: string | undefined;
+    try {
+      documentName = document ? savePdf(document) : undefined;
+      const record = this.fuelRecordRepository.create({
+        ...createFuelRecordDto,
+        amount_return_date: createFuelRecordDto.amount_return_date || [],
+        status: createFuelRecordDto.status || 'Pending',
+        document_name: documentName || null,
       });
-      await this.fuelRecordLogRepository.save(log);
-    }
 
-    return this.findOne(saved.id);
+      this.applyStatus(record);
+      const saved = await this.fuelRecordRepository.save(record);
+
+      if (saved.amount_paid > 0) {
+        const log = this.fuelRecordLogRepository.create({
+          amount_paid: saved.amount_paid,
+          amount_remaining: saved.amount_remaining,
+          payment_date: saved.date ?? this.todayDateString(),
+          document_name: documentName || null,
+          fuelRecordId: saved.id,
+        });
+        await this.fuelRecordLogRepository.save(log);
+      }
+
+      return this.findOne(saved.id);
+    } catch (error) {
+      removePdf(documentName);
+      throw error;
+    }
   }
 
   async findAll() {
@@ -91,37 +101,45 @@ export class FuelRecordsService {
    * Record a new partial/full payment against remaining balance.
    * Creates a dated history log and updates paid/remaining/status.
    */
-  async addPayment(id: number, dto: AddPaymentDto) {
-    const record = await this.findOne(id);
+  async addPayment(id: number, dto: AddPaymentDto, document?: Buffer) {
+    let documentName: string | undefined;
+    try {
+      documentName = document ? savePdf(document) : undefined;
+      const record = await this.findOne(id);
 
-    if (record.amount_remaining <= 0) {
-      throw new BadRequestException('This record is already fully paid');
-    }
+      if (record.amount_remaining <= 0) {
+        throw new BadRequestException('This record is already fully paid');
+      }
 
-    if (dto.amount > record.amount_remaining) {
-      throw new BadRequestException(
-        `Payment amount (${dto.amount}) exceeds remaining balance (${record.amount_remaining})`,
+      if (dto.amount > record.amount_remaining) {
+        throw new BadRequestException(
+          `Payment amount (${dto.amount}) exceeds remaining balance (${record.amount_remaining})`,
+        );
+      }
+
+      record.amount_paid = Number(record.amount_paid) + Number(dto.amount);
+      record.amount_remaining = Math.max(
+        Number(record.amount_remaining) - Number(dto.amount),
+        0,
       );
+      this.applyStatus(record);
+
+      await this.fuelRecordRepository.save(record);
+
+      const log = this.fuelRecordLogRepository.create({
+        amount_paid: Number(dto.amount),
+        amount_remaining: record.amount_remaining,
+        payment_date: dto.payment_date || this.todayDateString(),
+        document_name: documentName || null,
+        fuelRecordId: id,
+      });
+      await this.fuelRecordLogRepository.save(log);
+
+      return this.findOne(id);
+    } catch (error) {
+      removePdf(documentName);
+      throw error;
     }
-
-    record.amount_paid = Number(record.amount_paid) + Number(dto.amount);
-    record.amount_remaining = Math.max(
-      Number(record.amount_remaining) - Number(dto.amount),
-      0,
-    );
-    this.applyStatus(record);
-
-    await this.fuelRecordRepository.save(record);
-
-    const log = this.fuelRecordLogRepository.create({
-      amount_paid: Number(dto.amount),
-      amount_remaining: record.amount_remaining,
-      payment_date: dto.payment_date || this.todayDateString(),
-      fuelRecordId: id,
-    });
-    await this.fuelRecordLogRepository.save(log);
-
-    return this.findOne(id);
   }
 
   async update(id: number, updateFuelRecordDto: UpdateFuelRecordDto) {
@@ -180,7 +198,18 @@ export class FuelRecordsService {
 
   async remove(id: number) {
     const record = await this.findOne(id);
+    const documents = new Set<string>();
+    if (record.document_name) documents.add(record.document_name);
+    record.logs?.forEach((log) => {
+      if (log.document_name) documents.add(log.document_name);
+    });
+
     await this.fuelRecordRepository.remove(record);
+    documents.forEach((filename) => removePdf(filename));
     return { message: `Fuel record ${id} deleted successfully` };
+  }
+
+  getDocumentPath(filename: string): string {
+    return getPdfPath(filename);
   }
 }

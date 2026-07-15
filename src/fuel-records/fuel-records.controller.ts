@@ -7,18 +7,25 @@ import {
   Param,
   Body,
   ParseIntPipe,
+  Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { Response } from 'express';
 import { FuelRecordsService } from './fuel-records.service';
 import { CreateFuelRecordDto } from './dto/create-fuel-record.dto';
 import { UpdateFuelRecordDto } from './dto/update-fuel-record.dto';
 import { AddPaymentDto } from './dto/add-payment.dto';
+import { PDF_UPLOAD_OPTIONS } from '../common/upload/pdf-upload';
 
 @ApiTags('Fuel Records')
 @ApiBearerAuth('JWT-auth')
@@ -27,10 +34,15 @@ export class FuelRecordsController {
   constructor(private readonly fuelRecordsService: FuelRecordsService) {}
 
   @Post('fuelRecord')
+  @UseInterceptors(FileInterceptor('document', PDF_UPLOAD_OPTIONS))
+  @ApiConsumes('application/json', 'multipart/form-data')
   @ApiOperation({ summary: 'Create a new fuel record (auto-creates first payment log)' })
   @ApiResponse({ status: 201, description: 'Fuel record created with initial log entry' })
-  create(@Body() createFuelRecordDto: CreateFuelRecordDto) {
-    return this.fuelRecordsService.create(createFuelRecordDto);
+  create(
+    @Body() createFuelRecordDto: CreateFuelRecordDto,
+    @UploadedFile() document?: Express.Multer.File,
+  ) {
+    return this.fuelRecordsService.create(createFuelRecordDto, document?.buffer);
   }
 
   @Get('fuelRecord')
@@ -38,6 +50,19 @@ export class FuelRecordsController {
   @ApiResponse({ status: 200, description: 'List of all fuel records' })
   findAll() {
     return this.fuelRecordsService.findAll();
+  }
+
+  @Get('fuelRecord/documents/:filename')
+  @ApiOperation({ summary: 'Open an authenticated fuel record PDF' })
+  @ApiParam({ name: 'filename', type: String })
+  openDocument(@Param('filename') filename: string, @Res() response: Response) {
+    return response.sendFile(this.fuelRecordsService.getDocumentPath(filename), {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'inline',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
   }
 
   @Get('fuelRecord/:id')
@@ -50,6 +75,8 @@ export class FuelRecordsController {
   }
 
   @Post('fuelRecord/:id/payment')
+  @UseInterceptors(FileInterceptor('document', PDF_UPLOAD_OPTIONS))
+  @ApiConsumes('application/json', 'multipart/form-data')
   @ApiOperation({
     summary: 'Add a partial or full payment',
     description:
@@ -62,8 +89,9 @@ export class FuelRecordsController {
   addPayment(
     @Param('id', ParseIntPipe) id: number,
     @Body() addPaymentDto: AddPaymentDto,
+    @UploadedFile() document?: Express.Multer.File,
   ) {
-    return this.fuelRecordsService.addPayment(id, addPaymentDto);
+    return this.fuelRecordsService.addPayment(id, addPaymentDto, document?.buffer);
   }
 
   @Put('fuelRecord/:id/update')

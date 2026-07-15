@@ -33,6 +33,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change_me_jwt_secret_please}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3h}
       ADMIN_SECRET: ${ADMIN_SECRET:-change_me_admin_secret}
+    volumes:
+      - petrol_uploads:/app/uploads
 
   web:
     build:
@@ -57,3 +59,4 @@ services:
 
 volumes:
   petrol_pg_data:
+  petrol_uploads:

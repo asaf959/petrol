@@ -62,6 +62,14 @@ export class FuelRecord {
   @Column({ nullable: false, default: 'Pending' })
   status: string;
 
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Stored filename of the PDF attached to this fuel record',
+  })
+  @Column({ nullable: true })
+  document_name: string | null;
+
   @Column({ nullable: true })
   vehicle_id: number;
 

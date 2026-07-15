@@ -15,7 +15,8 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache python3 make g++ \
-  && addgroup -S app && adduser -S app -G app
+  && addgroup -S app && adduser -S app -G app \
+  && mkdir -p /app/uploads && chown -R app:app /app/uploads
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json

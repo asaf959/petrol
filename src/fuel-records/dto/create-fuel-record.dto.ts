@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateFuelRecordDto {
   @ApiProperty({ example: '2024-01-15', description: 'Date of the fuel record' })
@@ -37,6 +38,14 @@ export class CreateFuelRecordDto {
     description: 'Expected return dates for remaining amount',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  })
   amount_return_date?: object;
 
   @ApiProperty({ example: 'Cash', description: 'Payment type: Cash, Bank, Credit' })

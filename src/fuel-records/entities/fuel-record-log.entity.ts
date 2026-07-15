@@ -30,6 +30,13 @@ export class FuelRecordLog {
   @Column({ type: 'date', nullable: true })
   payment_date: Date | null;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Stored filename of the PDF receipt attached to this payment',
+  })
+  @Column({ nullable: true })
+  document_name: string | null;
+
   @Column({ nullable: true })
   fuelRecordId: number;
 
