@@ -6,6 +6,7 @@ import { FuelRecordLog } from './entities/fuel-record-log.entity';
 import { CreateFuelRecordDto } from './dto/create-fuel-record.dto';
 import { UpdateFuelRecordDto } from './dto/update-fuel-record.dto';
 import { AddPaymentDto } from './dto/add-payment.dto';
+import { UpdatePaymentLogDto } from './dto/update-payment-log.dto';
 import { getPdfPath, removePdf, savePdf } from '../common/upload/pdf-upload';
 
 @Injectable()
@@ -46,6 +47,29 @@ export class FuelRecordsService {
       });
     }
     return record;
+  }
+
+  private async syncRecordTotalsFromLogs(record: FuelRecord): Promise<void> {
+    this.sortLogs(record);
+    const logs = record.logs ?? [];
+    let paidSoFar = 0;
+    const total = Number(record.total_amount);
+
+    for (const log of logs) {
+      paidSoFar += Number(log.amount_paid);
+      if (paidSoFar > total) {
+        throw new BadRequestException(
+          `Total payments (${paidSoFar}) cannot exceed total amount (${total})`,
+        );
+      }
+      log.amount_remaining = Math.max(total - paidSoFar, 0);
+      await this.fuelRecordLogRepository.save(log);
+    }
+
+    record.amount_paid = paidSoFar;
+    record.amount_remaining = Math.max(total - paidSoFar, 0);
+    this.applyStatus(record);
+    await this.fuelRecordRepository.save(record);
   }
 
   async create(createFuelRecordDto: CreateFuelRecordDto, document?: Buffer) {
@@ -138,6 +162,52 @@ export class FuelRecordsService {
       return this.findOne(id);
     } catch (error) {
       removePdf(documentName);
+      throw error;
+    }
+  }
+
+  async updatePaymentLog(
+    recordId: number,
+    logId: number,
+    dto: UpdatePaymentLogDto,
+    document?: Buffer,
+  ) {
+    let documentName: string | undefined;
+    try {
+      const record = await this.findOne(recordId);
+      const log = record.logs?.find((entry) => entry.id === logId);
+      if (!log) {
+        throw new NotFoundException(`Payment log with id ${logId} not found`);
+      }
+
+      const oldDocument = log.document_name;
+
+      if (dto.amount !== undefined) {
+        if (Number(dto.amount) <= 0) {
+          throw new BadRequestException('Payment amount must be greater than zero');
+        }
+        log.amount_paid = Number(dto.amount);
+      }
+
+      if (dto.payment_date !== undefined) {
+        log.payment_date = dto.payment_date as unknown as Date;
+      }
+
+      if (document) {
+        documentName = savePdf(document);
+        log.document_name = documentName;
+      }
+
+      await this.fuelRecordLogRepository.save(log);
+      await this.syncRecordTotalsFromLogs(record);
+
+      if (document && oldDocument && oldDocument !== documentName) {
+        removePdf(oldDocument);
+      }
+
+      return this.findOne(recordId);
+    } catch (error) {
+      if (documentName) removePdf(documentName);
       throw error;
     }
   }

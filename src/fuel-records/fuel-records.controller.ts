@@ -25,6 +25,7 @@ import { FuelRecordsService } from './fuel-records.service';
 import { CreateFuelRecordDto } from './dto/create-fuel-record.dto';
 import { UpdateFuelRecordDto } from './dto/update-fuel-record.dto';
 import { AddPaymentDto } from './dto/add-payment.dto';
+import { UpdatePaymentLogDto } from './dto/update-payment-log.dto';
 import { PDF_UPLOAD_OPTIONS } from '../common/upload/pdf-upload';
 
 @ApiTags('Fuel Records')
@@ -92,6 +93,33 @@ export class FuelRecordsController {
     @UploadedFile() document?: Express.Multer.File,
   ) {
     return this.fuelRecordsService.addPayment(id, addPaymentDto, document?.buffer);
+  }
+
+  @Put('fuelRecord/:id/payment/:logId/update')
+  @UseInterceptors(FileInterceptor('document', PDF_UPLOAD_OPTIONS))
+  @ApiConsumes('application/json', 'multipart/form-data')
+  @ApiOperation({
+    summary: 'Update a payment history entry',
+    description:
+      'Edit payment date, amount, or PDF for an existing log entry and recalculate paid/remaining totals.',
+  })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiParam({ name: 'logId', type: Number })
+  @ApiResponse({ status: 200, description: 'Payment log updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid payment amount or exceeds total' })
+  @ApiResponse({ status: 404, description: 'Fuel record or payment log not found' })
+  updatePaymentLog(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('logId', ParseIntPipe) logId: number,
+    @Body() updatePaymentLogDto: UpdatePaymentLogDto,
+    @UploadedFile() document?: Express.Multer.File,
+  ) {
+    return this.fuelRecordsService.updatePaymentLog(
+      id,
+      logId,
+      updatePaymentLogDto,
+      document?.buffer,
+    );
   }
 
   @Put('fuelRecord/:id/update')
