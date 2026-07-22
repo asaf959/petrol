@@ -45,13 +45,29 @@ export class StationsService {
     return { message: `Station ${id} deleted successfully` };
   }
 
-  async getFuelRecordsByStation(stationId: number) {
+  async getFuelRecordsByStation(
+    stationId: number,
+    filters: { startDate?: string; endDate?: string } = {},
+  ) {
     await this.findOne(stationId);
-    const records = await this.fuelRecordRepository.find({
-      where: { station_id: stationId },
-      relations: ['vehicle', 'station', 'logs'],
-      order: { date: 'DESC', id: 'DESC' },
-    });
+
+    const qb = this.fuelRecordRepository
+      .createQueryBuilder('record')
+      .leftJoinAndSelect('record.vehicle', 'vehicle')
+      .leftJoinAndSelect('record.station', 'station')
+      .leftJoinAndSelect('record.logs', 'logs')
+      .where('record.station_id = :stationId', { stationId })
+      .orderBy('record.date', 'DESC')
+      .addOrderBy('record.id', 'DESC');
+
+    if (filters.startDate) {
+      qb.andWhere('record.date >= :startDate', { startDate: filters.startDate });
+    }
+    if (filters.endDate) {
+      qb.andWhere('record.date <= :endDate', { endDate: filters.endDate });
+    }
+
+    const records = await qb.getMany();
 
     // Keep returning a plain array so existing clients stay compatible.
     // Amounts are always numeric floats from the entity.

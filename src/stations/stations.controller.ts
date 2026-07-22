@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   ParseIntPipe,
 } from '@nestjs/common';
 import {
@@ -14,6 +15,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { StationsService } from './stations.service';
 import { CreateStationDto } from './dto/create-station.dto';
@@ -68,11 +70,24 @@ export class StationsController {
   }
 
   @Get('fuelRecordByStation/:stationId')
-  @ApiOperation({ summary: 'Get all fuel records for a specific station' })
+  @ApiOperation({
+    summary: 'Get all fuel records for a specific station',
+    description:
+      'Optional filters: startDate, endDate (YYYY-MM-DD). Omit both to return every record.',
+  })
   @ApiParam({ name: 'stationId', type: Number })
+  @ApiQuery({ name: 'startDate', required: false, example: '2026-07-01' })
+  @ApiQuery({ name: 'endDate', required: false, example: '2026-07-31' })
   @ApiResponse({ status: 200, description: 'Fuel records for the station' })
-  getFuelRecords(@Param('stationId', ParseIntPipe) stationId: number) {
-    return this.stationsService.getFuelRecordsByStation(stationId);
+  getFuelRecords(
+    @Param('stationId', ParseIntPipe) stationId: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.stationsService.getFuelRecordsByStation(stationId, {
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    });
   }
 
   @Get('profitByStation/:stationId')
