@@ -18,6 +18,24 @@ export class CreateFuelRecordDto {
   @IsNotEmpty()
   fuel_type: string;
 
+  @ApiPropertyOptional({
+    example: 50,
+    description: 'Petrol quantity in litres (optional). Used with liter_price to calculate amount.',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  petrol_liter?: number;
+
+  @ApiPropertyOptional({
+    example: 2.18,
+    description: 'Price per single litre in SAR (optional). Used with petrol_liter to calculate amount.',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  liter_price?: number;
+
   @ApiProperty({ example: 1500.0, description: 'Total amount of the transaction' })
   @IsNumber()
   @Min(0)

@@ -17,6 +17,18 @@ export class UpdateFuelRecordDto {
   @IsOptional()
   fuel_type?: string;
 
+  @ApiPropertyOptional({ example: 50, description: 'Petrol quantity in litres' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  petrol_liter?: number;
+
+  @ApiPropertyOptional({ example: 2.18, description: 'Price per single litre (SAR)' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  liter_price?: number;
+
   @ApiPropertyOptional({ example: 1500.0 })
   @IsNumber()
   @IsOptional()

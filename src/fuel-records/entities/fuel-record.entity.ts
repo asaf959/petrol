@@ -31,6 +31,24 @@ export class FuelRecord {
   @Column({ nullable: false })
   fuel_type: string;
 
+  @ApiProperty({
+    example: 50,
+    required: false,
+    nullable: true,
+    description: 'Petrol quantity in litres filled for this record',
+  })
+  @Column({ type: 'float', nullable: true })
+  petrol_liter: number | null;
+
+  @ApiProperty({
+    example: 2.18,
+    required: false,
+    nullable: true,
+    description: 'Price per single litre (SAR)',
+  })
+  @Column({ type: 'float', nullable: true })
+  liter_price: number | null;
+
   @ApiProperty({ example: 1500.0 })
   @Column({ type: 'float', nullable: false })
   total_amount: number;

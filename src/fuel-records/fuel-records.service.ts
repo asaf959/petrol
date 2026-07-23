@@ -22,6 +22,25 @@ export class FuelRecordsService {
     return new Date().toISOString().slice(0, 10);
   }
 
+  /** When both litres and unit price are present, bill total = litres × price. */
+  private calcAmountFromLiters(
+    petrolLiter?: number | null,
+    literPrice?: number | null,
+  ): number | null {
+    if (
+      petrolLiter === undefined ||
+      petrolLiter === null ||
+      literPrice === undefined ||
+      literPrice === null
+    ) {
+      return null;
+    }
+    const liters = Number(petrolLiter);
+    const price = Number(literPrice);
+    if (!Number.isFinite(liters) || !Number.isFinite(price)) return null;
+    return Math.round(liters * price * 100) / 100;
+  }
+
   private applyStatus(record: FuelRecord) {
     if (record.amount_remaining <= 0) {
       record.status = 'Paid';
@@ -76,8 +95,19 @@ export class FuelRecordsService {
     let documentName: string | undefined;
     try {
       documentName = document ? savePdf(document) : undefined;
+      const calculated = this.calcAmountFromLiters(
+        createFuelRecordDto.petrol_liter,
+        createFuelRecordDto.liter_price,
+      );
+      const totalAmount =
+        calculated !== null ? calculated : Number(createFuelRecordDto.total_amount);
+      const amountPaid = Number(createFuelRecordDto.amount_paid) || 0;
+
       const record = this.fuelRecordRepository.create({
         ...createFuelRecordDto,
+        total_amount: totalAmount,
+        amount_paid: amountPaid,
+        amount_remaining: Math.max(totalAmount - amountPaid, 0),
         amount_return_date: createFuelRecordDto.amount_return_date || [],
         status: createFuelRecordDto.status || 'Pending',
         document_name: documentName || null,
@@ -248,6 +278,15 @@ export class FuelRecordsService {
     }
 
     Object.assign(record, rest);
+
+    const calculated = this.calcAmountFromLiters(
+      record.petrol_liter,
+      record.liter_price,
+    );
+    if (calculated !== null) {
+      rest.total_amount = calculated;
+      record.total_amount = calculated;
+    }
 
     if (rest.total_amount !== undefined) {
       const total = Number(rest.total_amount);

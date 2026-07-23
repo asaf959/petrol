@@ -9,6 +9,7 @@ import { FuelRecordsModule } from './fuel-records/fuel-records.module';
 import { ProfitsModule } from './profits/profits.module';
 import { PersonalExpensesModule } from './personal-expenses/personal-expenses.module';
 import { PartnerExpensesModule } from './partner-expenses/partner-expenses.module';
+import { FuelTypesModule } from './fuel-types/fuel-types.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PartnerExpensesModule } from './partner-expenses/partner-expenses.modul
     VehiclesModule,
     StationsModule,
     FuelRecordsModule,
+    FuelTypesModule,
     ProfitsModule,
     PersonalExpensesModule,
     PartnerExpensesModule,
